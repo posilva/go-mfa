@@ -27,7 +27,6 @@ matrix:
   fast_finish: true
 
 script:
-  - golangci-lint run       # run a bunch of code checkers/linters in parallel
   - go get -t -v ./...
   - diff -u <(echo -n) <(gofmt -d -s .)
   - go tool vet .

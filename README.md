@@ -40,8 +40,8 @@ func main() {
 
 // printAccountSessions uses the ForEach function to run a given function in
 // all the cached AWSSessions
-func printAccountSessions(sessionsMap *session.Map) {
-	sessionsMap.ForEach(func(a string, r string, s *session.AWSSession) error {
+func printAccountSessions(mfaSession *session.MFASession) {
+	mfaSession.ForEachSession(func(a string, r string, s *session.AWSSession) error {
 		c, _ := s.Get().Config.Credentials.Get()
 		fmt.Printf("%v - %v - %v \n", a, r, c)
 		return nil
@@ -51,8 +51,8 @@ func printAccountSessions(sessionsMap *session.Map) {
 
 // useSession is an example of requiring a cached session and execute normal
 // AWS SDK
-func useSession(sessionsMap *session.Map, account string, region string) {
-	s, err := sessionsMap.Get(account, region)
+func useSession(mfaSession *session.MFASession, account string, region string) {
+	s, err := mfaSession.Get(account, region)
 	if err != nil {
 		log.Fatal(err)
 	}

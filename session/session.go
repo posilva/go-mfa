@@ -28,16 +28,29 @@ func (as *AWSSession) Get() *session.Session {
 type MFASession struct {
 	session        *session.Session
 	params         *Params
-	cachedSessions session.Session
+	cachedSessions Map
 }
 
 // NewMFASession creates a new session using mfa
-func NewMFASession(p Params) *MFASession {
-	ss := MFASession{
+func NewMFASession(p Params) (*MFASession, error) {
+	ss := &MFASession{
 		params: &p,
 	}
-	ss.initWithToken()
-	return &ss
+	err := ss.initWithToken()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create a new session")
+	}
+	return ss, nil
+}
+
+// Get get an AWS session for a given account and region
+func (s *MFASession) Get(account string, region string) (*AWSSession, error) {
+	return s.cachedSessions.get(account, region)
+}
+
+// ForEachSession allows to iterate over all the sessions and execute function (session.HandlerFunc)
+func (s *MFASession) ForEachSession(fn HandlerFunc) {
+	s.cachedSessions.forEach(fn)
 }
 
 // Assume creates a custom session using the provided role
@@ -53,39 +66,37 @@ func (s *MFASession) Assume(role string, region string) (*AWSSession, error) {
 }
 
 // AssumeBulk creates several custom sessions from the MFA Session
-func (s *MFASession) AssumeBulk(roleName string, accounts []string) (*Map, error) {
+func (s *MFASession) AssumeBulk(roleName string, accounts []string) error {
 	return s.AssumeBulkWithRegions(roleName, accounts, DefaultRegions())
 }
 
 // AssumeBulkWithRegions creates a custom session from the main session
-func (s *MFASession) AssumeBulkWithRegions(roleName string, accounts []string, regions []string) (*Map, error) {
-	var sm Map
+func (s *MFASession) AssumeBulkWithRegions(roleName string, accounts []string, regions []string) error {
 	for _, account := range accounts {
 		role := "arn:aws:iam::" + account + ":role/" + roleName
-		sm.Ensure(account)
+		s.cachedSessions.Ensure(account)
 		var rwg sync.WaitGroup
 		rwg.Add(len(regions))
 		for _, region := range regions {
 			errs := make(chan error, 1)
 			go func(a string, r string, errs chan<- error) {
-				s, err := s.Assume(role, r)
+				ss, err := s.Assume(role, r)
 				if err != nil {
 					errs <- err
 				}
-				sm.Put(a, r, s)
+				s.cachedSessions.Put(a, r, ss)
 				rwg.Done()
 			}(account, region, errs)
 		}
 		rwg.Wait()
-
 	}
-	return &sm, nil
+	return nil
 }
 
 func (s *MFASession) initWithToken() error {
 	creds, err := s.getMFACredentials()
 	if err != nil {
-		return fmt.Errorf("failed to create a session token: %v", err)
+		return errors.Wrapf(err, "failed to create a session token")
 	}
 	s.session = session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
@@ -131,9 +142,9 @@ func fromStsCredentials(c *sts.Credentials) *credentials.Credentials {
 func assumeRole(session *session.Session, roleArn string) (*sts.Credentials, error) {
 	svc := sts.New(session)
 	input := &sts.AssumeRoleInput{
-		DurationSeconds: aws.Int64(3600),
+		DurationSeconds: aws.Int64(defaultMFADuration),
 		RoleArn:         aws.String(roleArn),
-		RoleSessionName: aws.String("Gomonit"),
+		RoleSessionName: aws.String("go-mfa-session"),
 	}
 	result, err := svc.AssumeRole(input)
 	if err != nil {

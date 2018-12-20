@@ -1,6 +1,6 @@
 package session
 
-// Default returns the default regions supported by AWS
+// DefaultRegions returns the default regions supported by AWS
 // NOTE: in the future this list is subject to change
 func DefaultRegions() []string {
 	return []string{

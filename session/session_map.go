@@ -26,18 +26,12 @@ func (m *Map) Put(account string, region string, session *AWSSession) {
 
 }
 
-// Get returns a session for an given account in a region
-func (m *Map) Get(account string, region string) (*AWSSession, error) {
+func (m *Map) get(account string, region string) (*AWSSession, error) {
 	if r, ok := m.m.Load(account); ok {
 		if rs, ok := r.(*sync.Map); ok {
 			if s, ok := rs.Load(region); ok {
 				sess := s.(*AWSSession)
-				sess.Get().Config.Credentials.Get()
-				if sess.Get().Config.Credentials.IsExpired() {
-					return nil, fmt.Errorf("session is expired or account '%v' on region '%v'", account, region)
-				}
 				return sess, nil
-
 			}
 		}
 	}
@@ -45,7 +39,7 @@ func (m *Map) Get(account string, region string) (*AWSSession, error) {
 }
 
 // ForEach allows to iterate over all the sessions
-func (m *Map) ForEach(fn HandlerFunc) {
+func (m *Map) forEach(fn HandlerFunc) {
 	m.m.Range(func(account, regionMap interface{}) bool {
 		rm := regionMap.(*sync.Map)
 		rm.Range(func(region, sess interface{}) bool {

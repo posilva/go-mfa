@@ -54,7 +54,7 @@ func printAccountSessions(sessionsMap *session.Map) {
 func useSession(sessionsMap *session.Map, account string, region string) {
 	s, err := sessionsMap.Get(account, region)
 	if err != nil {
-		log.Fatalf("failed to get sessions for account '%v' on region '%v': %v", account, region, err)
+		log.Fatal(err)
 	}
 	svc := s3.New(s.Get())
 	input := &s3.ListBucketsInput{}

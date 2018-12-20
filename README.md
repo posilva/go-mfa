@@ -1,6 +1,8 @@
 # go-mfa
 Create Multiple AWS Session using MFA main account
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/posilva/go-mfa)](https://goreportcard.com/report/github.com/posilva/go-mfa)  [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/posilva/go-mfa/blob/master/LICENSE)
+
 ## Import
 ```bash
 $ go get github.com/posilva/go-mfa
